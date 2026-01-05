@@ -6,6 +6,18 @@
     font-display: swap;
 }
 
+ :root {
+     --points-top: 25px;
+     --points-gap-between-teams: 40px;
+     --points-center-offset-x: 0px;
+     --points-square-size: 40px;
+     --points-square-gap: 6px;
+     --points-square-color: #ffffff;
+     --points-square-border: 0px;
+     --points-square-border-color: rgba(0, 0, 0, 0);
+     --points-square-radius: 0px;
+ }
+
 body, html {
     margin: 0;
     padding: 0;
@@ -329,14 +341,15 @@ body, html {
 
 .match-points {
     position: fixed;
-    top: 30px;
-    left: 0px;
-    right: 0px;
+    top: var(--points-top);
+    left: 50%;
+    right: auto;
+    transform: translateX(calc(-50% + var(--points-center-offset-x)));
     display: flex;
     justify-content: center;
     align-items: center;
     color: #ffffff;
-    gap: 448px;
+    gap: var(--points-gap-between-teams);
 }
 .match-points1 {
     font-size: 44px;
@@ -355,8 +368,10 @@ body, html {
 
 .square {
     display: inline-block;
-    width: 20px;
-    height: 20px;
-    margin: 4px;
-    background-color: #ffffff;
+    width: var(--points-square-size);
+    height: var(--points-square-size);
+    margin: var(--points-square-gap);
+    background-color: var(--points-square-color);
+    border: var(--points-square-border) solid var(--points-square-border-color);
+    border-radius: var(--points-square-radius);
 }
