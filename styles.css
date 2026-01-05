@@ -8,10 +8,10 @@
 
  :root {
      --points-top: 25px;
-     --points-gap-between-teams: 40px;
+     --points-gap-between-teams: 80px;
      --points-center-offset-x: 0px;
      --points-square-size: 40px;
-     --points-square-gap: 6px;
+     --points-square-gap: 10px;
      --points-square-color: #ffffff;
      --points-square-border: 0px;
      --points-square-border-color: rgba(0, 0, 0, 0);
