@@ -345,32 +345,43 @@ body, html {
     left: 50%;
     right: auto;
     transform: translateX(calc(-50% + var(--points-center-offset-x)));
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    width: 0;
+    height: var(--points-square-size);
     color: #ffffff;
-    gap: var(--points-gap-between-teams);
 }
 .match-points1 {
     font-size: 44px;
     font-weight: 100;
     text-align: center;
-    min-width: 133px;
+    min-width: 0;
     text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000;
+    position: absolute;
+    top: 0;
+    right: calc(var(--points-gap-between-teams) / 2);
+    display: flex;
+    align-items: center;
+    gap: var(--points-square-gap);
+    flex-direction: row-reverse;
 }
 .match-points2 {
     font-size: 44px;
     font-weight: 100;
     text-align: center;
-    min-width: 133px;
+    min-width: 0;
     text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000;
+    position: absolute;
+    top: 0;
+    left: calc(var(--points-gap-between-teams) / 2);
+    display: flex;
+    align-items: center;
+    gap: var(--points-square-gap);
 }
 
 .square {
     display: inline-block;
     width: var(--points-square-size);
     height: var(--points-square-size);
-    margin: var(--points-square-gap);
+    margin: 0;
     background-color: var(--points-square-color);
     border: var(--points-square-border) solid var(--points-square-border-color);
     border-radius: var(--points-square-radius);
