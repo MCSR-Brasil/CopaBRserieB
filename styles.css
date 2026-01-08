@@ -7,11 +7,13 @@
 }
 
  :root {
-     --points-top: 25px;
+     --points-top: 31px;
      --points-gap-between-teams: 100px;
      --points-center-offset-x: 0px;
-     --points-square-size: 40px;
-     --points-square-gap: 10px;
+     --points-team1-outward-offset: 11px;
+     --points-team2-outward-offset: 10px;
+     --points-square-size: 36px;
+     --points-square-gap: 14px;
      --points-square-color: #ffffff;
      --points-square-border: 0px;
      --points-square-border-color: rgba(0, 0, 0, 0);
@@ -357,7 +359,7 @@ body, html {
     text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000;
     position: absolute;
     top: 0;
-    right: calc(var(--points-gap-between-teams) / 2);
+    right: calc((var(--points-gap-between-teams) / 2) + var(--points-team1-outward-offset));
     display: flex;
     align-items: center;
     gap: var(--points-square-gap);
@@ -371,7 +373,7 @@ body, html {
     text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000;
     position: absolute;
     top: 0;
-    left: calc(var(--points-gap-between-teams) / 2);
+    left: calc((var(--points-gap-between-teams) / 2) + var(--points-team2-outward-offset));
     display: flex;
     align-items: center;
     gap: var(--points-square-gap);
