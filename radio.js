@@ -26,6 +26,7 @@
   const volume = Math.max(0, Math.min(1, parseFloat(params.get('volume') || '1')));
   const unique = params.get('unique') !== '0';
   const autoplayParam = (params.get('autoplay') || 'auto').toLowerCase(); // auto | muted | sound
+  const debug = params.get('debug') === '1';
 
   const isOBS = !!window.obsstudio || /OBS/i.test(navigator.userAgent || '');
   function shouldStartMuted() {
@@ -39,13 +40,34 @@
     return `${path}/${prefix}${n}${suffix}`;
   }
 
-  async function exists(url) {
+  async function probe(url) {
+    // GitHub Pages + OBS sometimes behave oddly with HEAD; use a small Range GET fallback.
     try {
-      const res = await fetch(url, { method: 'HEAD', cache: 'no-cache' });
-      return res.ok;
+      const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+      if (res.ok) return true;
+    } catch (_) {
+      // ignore, fallback below
+    }
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { Range: 'bytes=0-0' },
+      });
+      return res.ok || res.status === 206;
     } catch (_) {
       return false;
     }
+  }
+
+  async function exists(url) {
+    // Retry a couple times to reduce the chance of transient failures causing a tiny playlist.
+    for (let i = 0; i < 3; i++) {
+      const ok = await probe(url);
+      if (ok) return true;
+      await new Promise(r => setTimeout(r, 150));
+    }
+    return false;
   }
 
   async function discoverFiles() {
@@ -61,12 +83,25 @@
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
   async function init() {
     try {
       const files = await discoverFiles();
       if (!files.length) {
         console.warn('[radio] No MP3 files found. Checked range:', start, '-', end, 'under path:', path);
         return;
+      }
+
+      if (debug) {
+        console.log('[radio] Discovered files:', files.length, files);
       }
 
       const audio = new Audio();
@@ -79,6 +114,22 @@
       audio.style.display = 'none';
       document.body.appendChild(audio);
       audio.muted = shouldStartMuted();
+
+      let debugEl = null;
+      if (debug) {
+        debugEl = document.createElement('div');
+        debugEl.style.position = 'fixed';
+        debugEl.style.left = '10px';
+        debugEl.style.top = '10px';
+        debugEl.style.zIndex = '9999';
+        debugEl.style.padding = '8px 10px';
+        debugEl.style.background = 'rgba(0,0,0,0.6)';
+        debugEl.style.color = '#fff';
+        debugEl.style.font = '12px/1.4 monospace';
+        debugEl.style.whiteSpace = 'pre';
+        debugEl.textContent = '[radio] init';
+        document.body.appendChild(debugEl);
+      }
 
       function attachUserGestureGate() {
         let armed = true;
@@ -98,17 +149,20 @@
         window.addEventListener('touchstart', handler, { once: true, passive: true });
       }
 
-      let pool = files.slice();
+      let queue = unique ? shuffle(files) : files.slice();
+      let queueIndex = 0;
 
       function nextSrc() {
-        if (unique) {
-          if (pool.length === 0) pool = files.slice();
-          const idx = Math.floor(Math.random() * pool.length);
-          const [url] = pool.splice(idx, 1);
-          return url;
-        } else {
-          return pickRandom(files);
+        if (!files.length) return null;
+        if (!unique) return pickRandom(files);
+
+        if (queueIndex >= queue.length) {
+          queue = shuffle(files);
+          queueIndex = 0;
         }
+        const url = queue[queueIndex];
+        queueIndex += 1;
+        return url;
       }
 
       async function tryPlay() {
@@ -131,13 +185,22 @@
       function playNext() {
         const url = nextSrc();
         if (!url) return;
-        audio.src = url;
+        // Cache-bust to avoid weird caching in long-running OBS browser sources.
+        const cacheBust = `cb=${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        const nextUrl = url.includes('?') ? `${url}&${cacheBust}` : `${url}?${cacheBust}`;
+        audio.src = nextUrl;
+        if (debugEl) {
+          debugEl.textContent = `[radio] files=${files.length}\n[running] ${url}`;
+        }
         tryPlay();
       }
 
       audio.addEventListener('ended', playNext);
       audio.addEventListener('error', () => {
-        console.error('[radio] Audio error, skipping to next track.');
+        console.error('[radio] Audio error, skipping to next track.', audio.error);
+        if (debugEl) {
+          debugEl.textContent = `[radio] ERROR -> skip\n${audio.currentSrc || ''}`;
+        }
         playNext();
       });
 
