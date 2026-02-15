@@ -27,6 +27,9 @@
   const unique = params.get('unique') !== '0';
   const autoplayParam = (params.get('autoplay') || 'auto').toLowerCase(); // auto | muted | sound
   const debug = params.get('debug') === '1';
+  const nextParam = params.get('next') || params.get('queue') || '';
+  const listParam = params.get('list') || params.get('tracks') || '';
+  const indexParam = params.get('index');
 
   const isOBS = !!window.obsstudio || /OBS/i.test(navigator.userAgent || '');
   function shouldStartMuted() {
@@ -92,9 +95,68 @@
     return a;
   }
 
+  function parseNextNumbers(raw) {
+    if (!raw) return [];
+    return raw
+      .split(/[,;\s]+/)
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(s => parseInt(s, 10))
+      .filter(n => Number.isFinite(n));
+  }
+
+  async function tryReadIndexMd() {
+    if (indexParam === '0') return null;
+    const indexPath = (indexParam || `${path}/Index.md`).replace(/^\/+/, '');
+    try {
+      const res = await fetch(indexPath, { cache: 'no-store' });
+      if (!res.ok) return null;
+      const text = await res.text();
+      const entries = [];
+      const lines = text.split(/\r?\n/);
+      for (const line of lines) {
+        const m = line.match(/^\s*(\d+)\s*[-–—:]\s*(.+?)\s*$/);
+        if (!m) continue;
+        const n = parseInt(m[1], 10);
+        if (!Number.isFinite(n)) continue;
+        entries.push({ n, name: m[2] });
+      }
+      if (!entries.length) return null;
+      return entries;
+    } catch (_) {
+      return null;
+    }
+  }
+
   async function init() {
     try {
-      const files = await discoverFiles();
+      let files = [];
+      const nameByUrl = new Map();
+
+      const listNumbers = parseNextNumbers(listParam);
+      if (listNumbers.length) {
+        const listUrls = listNumbers.map(n => fileUrl(n));
+        const checks = await Promise.all(
+          listUrls.map(async (u) => ({ u, ok: await exists(u) }))
+        );
+        files = checks.filter(x => x.ok).map(x => x.u);
+      } else {
+        const indexEntries = await tryReadIndexMd();
+        if (indexEntries && indexEntries.length) {
+          const indexUrls = indexEntries.map(e => ({ url: fileUrl(e.n), name: e.name }));
+          const checks = await Promise.all(
+            indexUrls.map(async (x) => ({ ...x, ok: await exists(x.url) }))
+          );
+          files = checks.filter(x => x.ok).map(x => x.url);
+          for (const x of checks) {
+            if (x.ok && x.name) nameByUrl.set(x.url, x.name);
+          }
+        }
+      }
+
+      if (!files.length) {
+        files = await discoverFiles();
+      }
       if (!files.length) {
         console.warn('[radio] No MP3 files found. Checked range:', start, '-', end, 'under path:', path);
         return;
@@ -102,6 +164,19 @@
 
       if (debug) {
         console.log('[radio] Discovered files:', files.length, files);
+      }
+
+      const forcedNumbers = parseNextNumbers(nextParam);
+      let forcedQueue = forcedNumbers.map(n => fileUrl(n));
+      if (forcedQueue.length) {
+        // Pre-filter to existing files to reduce error-skips.
+        const forcedChecks = await Promise.all(
+          forcedQueue.map(async (u) => ({ u, ok: await exists(u) }))
+        );
+        forcedQueue = forcedChecks.filter(x => x.ok).map(x => x.u);
+        if (debug) {
+          console.log('[radio] Forced queue:', forcedQueue.length, forcedQueue);
+        }
       }
 
       const audio = new Audio();
@@ -152,8 +227,21 @@
       let queue = unique ? shuffle(files) : files.slice();
       let queueIndex = 0;
 
+      function removeFromQueueIfPresent(url) {
+        if (!unique) return;
+        const idx = queue.indexOf(url);
+        if (idx === -1) return;
+        queue.splice(idx, 1);
+        if (idx < queueIndex) queueIndex = Math.max(0, queueIndex - 1);
+      }
+
       function nextSrc() {
         if (!files.length) return null;
+        if (forcedQueue.length) {
+          const url = forcedQueue.shift();
+          removeFromQueueIfPresent(url);
+          return url;
+        }
         if (!unique) return pickRandom(files);
 
         if (queueIndex >= queue.length) {
@@ -185,12 +273,15 @@
       function playNext() {
         const url = nextSrc();
         if (!url) return;
+        const displayName = nameByUrl.get(url) || '';
         // Cache-bust to avoid weird caching in long-running OBS browser sources.
         const cacheBust = `cb=${Date.now()}_${Math.random().toString(16).slice(2)}`;
         const nextUrl = url.includes('?') ? `${url}&${cacheBust}` : `${url}?${cacheBust}`;
         audio.src = nextUrl;
         if (debugEl) {
-          debugEl.textContent = `[radio] files=${files.length}\n[running] ${url}`;
+          const forcedLeft = forcedQueue.length ? `\n[forced left] ${forcedQueue.join(', ')}` : '';
+          const nameLine = displayName ? `\n[name] ${displayName}` : '';
+          debugEl.textContent = `[radio] files=${files.length}\n[running] ${url}${nameLine}${forcedLeft}`;
         }
         tryPlay();
       }
@@ -208,7 +299,17 @@
       window.radioDebug = {
         get files() { return files.slice(); },
         get current() { return audio.currentSrc; },
+        get currentName() {
+          const raw = audio.currentSrc || '';
+          const cleaned = raw.split('?')[0];
+          return nameByUrl.get(cleaned) || '';
+        },
         next: playNext,
+        get forcedQueue() { return forcedQueue.slice(); },
+        setNext(list) {
+          const nums = Array.isArray(list) ? list : parseNextNumbers(String(list || ''));
+          forcedQueue = nums.map(n => fileUrl(n));
+        },
         setVolume(v) { audio.volume = Math.max(0, Math.min(1, v)); },
         audio,
       };
