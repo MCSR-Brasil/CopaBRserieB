@@ -18,6 +18,13 @@
 30 - Rainbow road 1
 32 - Mario kart menu
 33 - Rainbow Road 2
-34 - Naruto Bum song
+34 - Naruto Unemployed song
 35 - Touhou Bossa Nova
 36 - Sunglow no voice
+37 - Musica animada Summoning Salt
+38 - Musica "suspense" animada HOME
+39 - Musica animada Repetitiva Summoning Salt
+40 - Musica calminha mas energetica
+41 - Musica mais pesada mas energetica
+42 - Phoon Bhop song
+43 - The strokes - Adults are talking Karaoke
