@@ -7,7 +7,7 @@
   Configure via URL query params (all optional):
   - path:   Folder path containing mp3s (default: "audio")
   - start:  Start number in range (default: 1)
-  - end:    End number in range, inclusive (default: 50)
+  - end:    End number in range, inclusive (default: 51)
   - prefix: Filename prefix (default: "")
   - suffix: Filename suffix/extension (default: ".mp3")
   - volume: 0.0..1.0 (default: 1.0)
@@ -20,7 +20,7 @@
   const params = new URLSearchParams(window.location.search);
   const path = (params.get('path') || 'audio').replace(/^\/+|\/+$/g, '');
   const start = parseInt(params.get('start') || '1', 10);
-  const end = parseInt(params.get('end') || '50', 10);
+  const end = parseInt(params.get('end') || '51', 10);
   const prefix = params.get('prefix') || '';
   const suffix = params.get('suffix') || '.mp3';
   const volume = Math.max(0, Math.min(1, parseFloat(params.get('volume') || '1')));
